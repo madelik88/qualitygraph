@@ -75,4 +75,6 @@ I test automatici confrontano tutti e cinque i casi con questa chiave. I tempi m
 
 ## Stato del rilascio
 
-La versione candidata include importazione CSV con profili, snapshot SQLite, indagini locali con paginazione e download JSON completo. Tutti i cinque casi sono stati ricostruiti dai CSV e verificati con i test. Il benchmark nel browser è concluso per entrambi i grafi. Resta da misurare il tempo del confronto con partecipanti prima del rilascio stabile.
+La v1.0.0 è il primo rilascio dell'MVP. Include importazione CSV con profili e anteprima, snapshot SQLite, indagini locali con paginazione e download JSON completo. I cinque casi sintetici coincidono con gli esiti attesi. Entrambi i benchmark nel browser rispettano l'obiettivo di 2 s.
+
+Il confronto cronometrato con il metodo manuale è stato escluso dal rilascio. Il risparmio di tempo per un operatore resta da misurare.
