@@ -97,9 +97,21 @@ def save_snapshot(database, tables, digests):
     return fingerprint, True
 
 
-def load_snapshot(database, fingerprint=None):
+def connect_read_only(database):
     uri = database.resolve().as_uri() + "?mode=ro"
-    with closing(sqlite3.connect(uri, uri=True)) as connection:
+    return sqlite3.connect(uri, uri=True)
+
+
+def list_snapshots(database):
+    with closing(connect_read_only(database)) as connection:
+        ensure_schema(connection)
+        return connection.execute(
+            "SELECT id, fingerprint FROM snapshots ORDER BY id DESC"
+        ).fetchall()
+
+
+def load_snapshot(database, fingerprint=None):
+    with closing(connect_read_only(database)) as connection:
         # Keep selection and all reads on the same view of the database.
         with connection:
             connection.execute("BEGIN")

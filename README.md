@@ -27,13 +27,25 @@ L'importazione restituisce `snapshot_id` e `created`. Se i quattro file sono ide
 
 L'indagine legge per impostazione predefinita l'ultima **nuova** importazione salvata. Per ripetere un'indagine su una versione precedente, usa `--from-db qualitygraph.db --snapshot ID QC-017`, sostituendo `ID` con lo `snapshot_id` restituito all'importazione. Il fascicolo conserva l'hash e i numeri di record dei CSV. Conserva i CSV originali se vuoi verificare gli hash in seguito.
 
+## Aprire la schermata web locale
+
+Con `qualitygraph.db` già importato, avvia il server dalla cartella del progetto.
+
+```bash
+python3 qualitygraph_web.py qualitygraph.db
+```
+
+Apri [http://127.0.0.1:8765](http://127.0.0.1:8765). Seleziona un'importazione e premi **Carica**, poi seleziona `QC-017` e premi **Apri indagine**. Espandi un lotto per vedere il percorso e clicca sul riferimento al record per leggere la riga corrispondente. **Scarica fascicolo JSON** esporta lo stesso fascicolo restituito dal comando SQLite. Se la porta è occupata, aggiungi `--port 8766` e apri l'indirizzo stampato nel terminale. Premi **Ctrl+C** per fermare il server.
+
+La pagina legge le importazioni esistenti. Per caricare un nuovo set di CSV, usa il comando di importazione e ricarica la pagina.
+
 ## Verifica
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
-I test verificano lo stesso fascicolo da CSV e da SQLite, la deduplicazione, la selezione di versioni precedenti e il rollback su errore. Il progetto è destinato alla sperimentazione con dati sintetici.
+I test verificano l'equivalenza dei fascicoli, la deduplicazione, lo storico, il rollback su errore e il flusso di selezione e download della pagina locale. Il progetto è destinato alla sperimentazione con dati sintetici.
 
 ## Licenza
 
