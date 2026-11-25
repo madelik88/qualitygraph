@@ -1,0 +1,4 @@
+event_id,batch_id,description
+DEV-001,INT-001,Valore oltre il limite superiore della specifica simulata
+DEV-002,FG-011,Esportazione della fase di confezionamento incompleta
+DEV-099,FG-099,Verifica di un lotto indipendente
