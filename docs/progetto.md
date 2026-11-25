@@ -4,19 +4,19 @@
 
 Un impianto virtuale, un caso di risultato fuori specifica (OOS) e una sessione di indagine locale. L'analista carica quattro CSV e seleziona il risultato. La vista mostra genealogia osservata, risultati e deviazioni pertinenti, lacune note e il percorso verso ciascun lotto. L'analista può esportare il fascicolo e risalire alle fonti. Il risultato OOS è uno stato fornito dal LIMS. La qualificazione del prodotto, la determinazione della causa e l'approvazione delle azioni restano responsabilità del team qualità.
 
-Lo starter consegna il percorso completo da terminale. L'MVP aggiunge una vista locale utilizzabile dal team QA, conservazione delle importazioni e un confronto controllato con un'indagine manuale.
+La v0.2 consegna il percorso completo da terminale con indagini da CSV o da importazioni SQLite. L'MVP aggiunge una vista locale utilizzabile dal team QA, profili di importazione e un confronto controllato con un'indagine manuale.
 
 ## Architettura
 
 | Componente | Starter | MVP |
 | --- | --- | --- |
 | Acquisizione | Quattro file CSV versionati con hash, validazione di chiavi e relazioni | Profili di importazione per riconciliare chiavi ERP/MES/LIMS/QMS, con anteprima degli scarti e dei campi mancanti |
-| Modello | Lotti, trasformazioni dirette, risultati e deviazioni | Tabelle SQLite indicizzate per snapshot, identità dei lotti ed eventi, con transazioni atomiche per importazione |
+| Modello | Lotti, trasformazioni dirette, risultati e deviazioni in tabelle SQLite indicizzate per snapshot e numero di record. Importazione atomica e deduplicazione basata sugli hash delle fonti | Indici aggiuntivi per identità dei lotti ed eventi, se richiesti dai test di carico |
 | Indagine | Ricerca in ampiezza separata a monte e a valle. Un percorso minimo documentato per ogni lotto | Filtri per contesto e finestre temporali, segnalazione di rami paralleli come ipotesi separate |
 | Interfaccia | Comando Python e fascicolo JSON | Interfaccia web vincolata a localhost, con vista dell'indagine e link ai singoli record |
 | Verifica | Fixture sintetica e casi di errore | Dataset a copertura nota, casi con dati mancanti e benchmark di tempo, memoria e correttezza |
 
-SQLite consente di iniziare con un processo e un file locale. Se i test lo richiedono, si potrà spostare la ricerca su tabelle indicizzate. Con lo starter, file e grafo risiedono in memoria. Su catene profonde, il JSON può ripetere molti tratti di percorso. I test di carico dovranno misurare anche le dimensioni del fascicolo.
+SQLite usa un file locale per conservare i record importati in ordine di origine, i nomi e gli hash dei quattro file. Le indagini caricano in memoria i record del singolo snapshot selezionato e usano lo stesso motore del comando CSV. Su catene profonde, il JSON può ripetere molti tratti di percorso. I test di carico dovranno misurare anche le dimensioni del fascicolo.
 
 Il computo iniziale è deterministico. Una fase successiva può suggerire eventi simili usando metadati come materiale, linea e metodo analitico, con criteri visibili su ogni suggerimento. La verifica dei suggerimenti richiede un insieme di casi etichettati. Il progetto iniziale usa Python standard e dati sintetici, con costo software di sviluppo pari a 0 €. Il costo di un pilota dipende dalla pulizia dei dati e dal tempo di configurazione.
 
@@ -38,7 +38,7 @@ I record di origine sono numerati a partire da 2 con l'intestazione al numero 1.
 | Fase | Consegna | Criterio di passaggio |
 | --- | --- | --- |
 | Avvio, completato | Analisi comparativa, fixture e comando locale | La demo ricostruisce i lotti attesi e marca la lacuna simulata. |
-| Settimane 1–2 | Contratto di importazione, riconciliazione delle chiavi, snapshot SQLite | Importazione ripetibile con esito identico e rollback su errori. |
+| Settimane 1–2 | Snapshot SQLite, consegnati nella v0.2. Riconciliazione delle chiavi prevista come fase successiva. | Importazione ripetibile con esito identico e rollback su errori. Verificare le regole di riconciliazione contro esportazioni sintetiche con chiavi discordanti. |
 | Settimane 3–4 | Vista QA locale ed esportazione del fascicolo | Un utente ripercorre ciascun percorso e identifica il record di origine. |
 | Settimane 5–6 | Benchmark sintetico su Mac M3 e prove guidate | Target iniziali sullo stesso hardware: 10.000 lotti e 100.000 relazioni, apertura dell'indagine in meno di 2 secondi dopo importazione e memoria di picco sotto 1 GB. Misurare importazione e report separatamente, includendo grafi profondi e ramificati. |
 | Dopo la prima validazione | Pilota su un caso autorizzato e confronto con il flusso manuale | Usare i criteri descritti nell'[analisi](analisi.md) per decidere se investire nei connettori. |

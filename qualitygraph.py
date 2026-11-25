@@ -8,14 +8,8 @@ from hashlib import sha256
 from io import StringIO
 import json
 from pathlib import Path
-
-
-SCHEMA = {
-    "batches.csv": ("batch_id", "material", "coverage"),
-    "lineage.csv": ("parent_batch", "child_batch", "operation_id"),
-    "results.csv": ("result_id", "batch_id", "analyte", "value", "unit", "status"),
-    "events.csv": ("event_id", "batch_id", "description"),
-}
+import sqlite3
+from qualitygraph_store import FILE_FIELDS, load_snapshot, save_snapshot
 
 
 def read_table(path, fields):
@@ -76,12 +70,15 @@ def walk(start, adjacency, target_key, batches):
     return reached
 
 
-def investigate(directory, result_id):
+def load_csv(directory):
     tables = {}
     digests = {}
-    for filename, fields in SCHEMA.items():
+    for filename, fields in FILE_FIELDS.items():
         tables[filename], digests[filename] = read_table(directory / filename, fields)
+    return tables, digests
 
+
+def index_snapshot(tables):
     batches = index_by(tables["batches.csv"], "batch_id")
     results = index_by(tables["results.csv"], "result_id")
     events = index_by(tables["events.csv"], "event_id")
@@ -111,7 +108,11 @@ def investigate(directory, result_id):
     except CycleError as error:
         chain = " -> ".join(error.args[1])
         raise ValueError(f"lineage.csv: cycle in batch genealogy ({chain})") from error
+    return batches, results, events, upstream, downstream
 
+
+def build_report(tables, digests, result_id):
+    batches, results, events, upstream, downstream = index_snapshot(tables)
     anchor = results.get(result_id)
     if anchor is None:
         raise ValueError(f"unknown result {result_id!r}")
@@ -140,16 +141,46 @@ def investigate(directory, result_id):
     }
 
 
+def investigate(directory, result_id):
+    tables, digests = load_csv(directory)
+    return build_report(tables, digests, result_id)
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("directory", type=Path, help="Directory with the four CSV exports")
-    parser.add_argument("result_id", help="Identifier of the OOS result")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        usage=("%(prog)s DIRECTORY RESULT_ID\n"
+               "       %(prog)s --import-db DATABASE DIRECTORY\n"
+               "       %(prog)s --from-db DATABASE [--snapshot ID] RESULT_ID"),
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--import-db", type=Path, metavar="DATABASE", help="Import validated CSVs")
+    mode.add_argument("--from-db", type=Path, metavar="DATABASE", help="Investigate stored rows")
+    parser.add_argument("--snapshot", metavar="ID", help="Select a stored import (default: latest)")
+    parser.add_argument("source", metavar="DIRECTORY_OR_RESULT_ID")
+    parser.add_argument("result_id", nargs="?")
     args = parser.parse_args()
+    if args.snapshot is not None and args.from_db is None:
+        parser.error("--snapshot requires --from-db")
+    if (args.import_db or args.from_db) and args.result_id is not None:
+        parser.error("database modes accept exactly one positional argument")
+    if not (args.import_db or args.from_db) and args.result_id is None:
+        parser.error("CSV investigation requires DIRECTORY and RESULT_ID")
+
     try:
-        report = investigate(args.directory, args.result_id)
-    except (OSError, ValueError, csv.Error) as error:
+        if args.import_db:
+            tables, digests = load_csv(Path(args.source))
+            index_snapshot(tables)
+            snapshot_id, created = save_snapshot(args.import_db, tables, digests)
+            output = {"snapshot_id": snapshot_id, "created": created}
+        elif args.from_db:
+            tables, digests = load_snapshot(args.from_db, args.snapshot)
+            output = build_report(tables, digests, args.source)
+        else:
+            output = investigate(Path(args.source), args.result_id)
+    except (OSError, ValueError, csv.Error, sqlite3.Error) as error:
         parser.exit(2, f"qualitygraph: {error}\n")
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(json.dumps(output, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
