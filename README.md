@@ -27,6 +27,19 @@ L'importazione restituisce `snapshot_id` e `created`. Se i quattro file sono ide
 
 L'indagine legge per impostazione predefinita l'ultima **nuova** importazione salvata. Per ripetere un'indagine su una versione precedente, usa `--from-db qualitygraph.db --snapshot ID QC-017`, sostituendo `ID` con lo `snapshot_id` restituito all'importazione. Il fascicolo conserva l'hash e i numeri di record dei CSV. Conserva i CSV originali se vuoi verificare gli hash in seguito.
 
+## Importare CSV con intestazioni e codici diversi
+
+La demo in `examples/profiled` usa intestazioni diverse e codici lotto separati per laboratorio, produzione e qualità. Verifica le corrispondenze prima di scrivere nel database.
+
+```bash
+python3 qualitygraph.py --preview --profile examples/profiled/profile.json examples/profiled
+python3 qualitygraph.py --import-db qualitygraph.db --profile examples/profiled/profile.json examples/profiled
+```
+
+L'anteprima mostra il conteggio dei record per file, i riferimenti riconciliati con codice originale e canonico e gli errori da correggere. Salva solo con `ready: true`. Se un riferimento è ambiguo o sconosciuto, l'importazione viene rifiutata. Un profilo o un CSV malformato viene segnalato direttamente nel terminale.
+
+Il [profilo di esempio](examples/profiled/profile.json) usa `version: 1` e la sezione `files`. Mantieni i quattro nomi di file standard. Per ciascun file, `columns` associa i campi canonici alle intestazioni esportate. `batch_aliases` associa i codici locali ai lotti del registro `batches.csv`. Gli identificatori senza alias devono essere già canonici. Il fascicolo mantiene file e numero di record originali e aggiunge l'impronta del profilo sotto `@profile`. Conserva il profilo insieme ai CSV per poter verificare la mappatura.
+
 ## Aprire la schermata web locale
 
 Con `qualitygraph.db` già importato, avvia il server dalla cartella del progetto.

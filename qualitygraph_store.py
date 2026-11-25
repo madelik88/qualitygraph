@@ -12,6 +12,7 @@ FILE_FIELDS = {
     "results.csv": ("result_id", "batch_id", "analyte", "value", "unit", "status"),
     "events.csv": ("event_id", "batch_id", "description"),
 }
+PROFILE_SOURCE = "@profile"
 APPLICATION_ID = 0x51475246
 SCHEMA_VERSION = 1
 
@@ -132,7 +133,7 @@ def load_snapshot(database, fingerprint=None):
             stored_digests = dict(connection.execute(
                 "SELECT filename, digest FROM sources WHERE snapshot_id = ?", snapshot
             ))
-            if stored_digests.keys() != FILE_FIELDS.keys():
+            if stored_digests.keys() - {PROFILE_SOURCE} != FILE_FIELDS.keys():
                 raise ValueError("The snapshot is missing its complete source manifest")
             tables = {}
             digests = {}
@@ -150,4 +151,6 @@ def load_snapshot(database, fingerprint=None):
                     row = dict(zip(fields, values))
                     row["source"] = {"file": filename, "record": record}
                     tables[filename].append(row)
+            if PROFILE_SOURCE in stored_digests:
+                digests[PROFILE_SOURCE] = stored_digests[PROFILE_SOURCE]
     return tables, digests

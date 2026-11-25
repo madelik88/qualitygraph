@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "files": {
+    "batches.csv": {
+      "columns": {
+        "batch_id": "production_lot",
+        "material": "product",
+        "coverage": "trace_status"
+      }
+    },
+    "lineage.csv": {
+      "columns": {
+        "parent_batch": "consumed_lot",
+        "child_batch": "produced_lot",
+        "operation_id": "work_order"
+      }
+    },
+    "results.csv": {
+      "columns": {
+        "result_id": "analysis_number",
+        "batch_id": "sample_lot",
+        "analyte": "test",
+        "value": "measurement",
+        "unit": "uom",
+        "status": "decision"
+      },
+      "batch_aliases": {
+        "L-100": "RAW-100",
+        "L-001": "INT-001",
+        "L-010": "FG-010",
+        "L-099": "FG-099"
+      }
+    },
+    "events.csv": {
+      "columns": {
+        "event_id": "deviation_number",
+        "batch_id": "affected_lot",
+        "description": "summary"
+      },
+      "batch_aliases": {
+        "Q-001": "INT-001",
+        "Q-011": "FG-011",
+        "Q-099": "FG-099"
+      }
+    }
+  }
+}

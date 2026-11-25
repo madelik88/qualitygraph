@@ -1,0 +1,8 @@
+production_lot,product,trace_status
+RAW-100,Resina base,no_known_gap
+RAW-200,Additivo,no_known_gap
+INT-001,Miscela intermedia,no_known_gap
+FG-010,Rivestimento finito,no_known_gap
+FG-011,Rivestimento rilavorato,known_gap
+FG-090,Rivestimento di un ramo parallelo,no_known_gap
+FG-099,Produzione indipendente,no_known_gap

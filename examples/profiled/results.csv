@@ -1,0 +1,5 @@
+analysis_number,sample_lot,test,measurement,uom,decision
+QC-001,L-100,Viscosity,120,mPa·s,PASS
+QC-017,L-001,Viscosity,640,mPa·s,OOS
+QC-023,L-010,Viscosity,490,mPa·s,PASS
+QC-099,L-099,Viscosity,480,mPa·s,PASS

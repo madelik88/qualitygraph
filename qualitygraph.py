@@ -9,21 +9,31 @@ from io import StringIO
 import json
 from pathlib import Path
 import sqlite3
-from qualitygraph_store import FILE_FIELDS, load_snapshot, save_snapshot
+from qualitygraph_profiles import load_profile, reconcile_batches
+from qualitygraph_store import FILE_FIELDS, PROFILE_SOURCE, load_snapshot, save_snapshot
 
 
-def read_table(path, fields):
+def read_table(path, fields, columns=None):
     snapshot = path.read_bytes()
     reader = csv.reader(StringIO(snapshot.decode("utf-8-sig"), newline=""), strict=True)
     headers = next(reader, [])
-    if len(headers) != len(fields) or set(headers) != set(fields):
-        raise ValueError(f"{path.name}: expected columns {', '.join(fields)}")
+    if columns is None:
+        if len(headers) != len(fields) or set(headers) != set(fields):
+            raise ValueError(f"{path.name}: expected columns {', '.join(fields)}")
+        positions = [(field, index) for index, field in enumerate(headers)]
+    else:
+        required = [columns.get(field, field) for field in fields]
+        if len(set(required)) != len(required):
+            raise ValueError(f"{path.name}: profile maps multiple fields to the same column")
+        if len(set(headers)) != len(headers) or not set(required) <= set(headers):
+            raise ValueError(f"{path.name}: expected unique columns including {', '.join(required)}")
+        positions = [(field, headers.index(header)) for field, header in zip(fields, required)]
 
     rows = []
     for record, values in enumerate(reader, start=2):
-        if len(values) != len(headers) or any(not value.strip() for value in values):
+        if len(values) != len(headers) or any(not values[index].strip() for _, index in positions):
             raise ValueError(f"{path.name}: invalid fields in record {record}")
-        row = dict(zip(headers, (value.strip() for value in values)))
+        row = {field: values[index].strip() for field, index in positions}
         row["source"] = {"file": path.name, "record": record}
         rows.append(row)
     return rows, sha256(snapshot).hexdigest()
@@ -70,11 +80,13 @@ def walk(start, adjacency, target_key, batches):
     return reached
 
 
-def load_csv(directory):
+def load_csv(directory, profile=None):
     tables = {}
     digests = {}
     for filename, fields in FILE_FIELDS.items():
-        tables[filename], digests[filename] = read_table(directory / filename, fields)
+        settings = profile.get(filename, {}) if profile is not None else {}
+        columns = settings.get("columns", {}) if profile is not None else None
+        tables[filename], digests[filename] = read_table(directory / filename, fields, columns)
     return tables, digests
 
 
@@ -150,29 +162,62 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
         usage=("%(prog)s DIRECTORY RESULT_ID\n"
-               "       %(prog)s --import-db DATABASE DIRECTORY\n"
+               "       %(prog)s --import-db DATABASE [--profile FILE] DIRECTORY\n"
+               "       %(prog)s --preview --profile FILE DIRECTORY\n"
                "       %(prog)s --from-db DATABASE [--snapshot ID] RESULT_ID"),
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--import-db", type=Path, metavar="DATABASE", help="Import validated CSVs")
     mode.add_argument("--from-db", type=Path, metavar="DATABASE", help="Investigate stored rows")
+    mode.add_argument("--preview", action="store_true", help="Preview profile mappings without saving")
+    parser.add_argument("--profile", type=Path, metavar="FILE", help="JSON import profile")
     parser.add_argument("--snapshot", metavar="ID", help="Select a stored import (default: latest)")
     parser.add_argument("source", metavar="DIRECTORY_OR_RESULT_ID")
     parser.add_argument("result_id", nargs="?")
     args = parser.parse_args()
     if args.snapshot is not None and args.from_db is None:
         parser.error("--snapshot requires --from-db")
-    if (args.import_db or args.from_db) and args.result_id is not None:
+    if args.preview and args.profile is None:
+        parser.error("--preview requires --profile")
+    if args.profile is not None and not (args.import_db or args.preview):
+        parser.error("--profile requires --import-db or --preview")
+    if (args.import_db or args.from_db or args.preview) and args.result_id is not None:
         parser.error("database modes accept exactly one positional argument")
-    if not (args.import_db or args.from_db) and args.result_id is None:
+    if not (args.import_db or args.from_db or args.preview) and args.result_id is None:
         parser.error("CSV investigation requires DIRECTORY and RESULT_ID")
 
+    exit_code = 0
     try:
-        if args.import_db:
-            tables, digests = load_csv(Path(args.source))
-            index_snapshot(tables)
-            snapshot_id, created = save_snapshot(args.import_db, tables, digests)
-            output = {"snapshot_id": snapshot_id, "created": created}
+        if args.import_db or args.preview:
+            profile = None
+            if args.profile is not None:
+                profile, profile_digest = load_profile(args.profile)
+            tables, digests = load_csv(Path(args.source), profile)
+            mappings, errors = [], []
+            if profile is not None:
+                digests[PROFILE_SOURCE] = profile_digest
+                mappings, errors = reconcile_batches(tables, profile)
+            if not errors:
+                try:
+                    index_snapshot(tables)
+                except ValueError as error:
+                    errors.append({"error": str(error)})
+            if args.preview:
+                output = {
+                    "ready": not errors,
+                    "rows": {filename: len(rows) for filename, rows in tables.items()},
+                    "mapped_references": mappings,
+                    "errors": errors,
+                }
+                exit_code = 2 if errors else 0
+            else:
+                if errors:
+                    raise ValueError("; ".join(
+                        f"{item['file']}: {item['error']}" if "file" in item else item["error"]
+                        for item in errors
+                    ))
+                snapshot_id, created = save_snapshot(args.import_db, tables, digests)
+                output = {"snapshot_id": snapshot_id, "created": created}
         elif args.from_db:
             tables, digests = load_snapshot(args.from_db, args.snapshot)
             output = build_report(tables, digests, args.source)
@@ -181,7 +226,8 @@ def main():
     except (OSError, ValueError, csv.Error, sqlite3.Error) as error:
         parser.exit(2, f"qualitygraph: {error}\n")
     print(json.dumps(output, ensure_ascii=False, indent=2))
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

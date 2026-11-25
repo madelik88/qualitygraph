@@ -4,7 +4,7 @@
 
 Un impianto virtuale, un caso di risultato fuori specifica (OOS) e una sessione di indagine locale. L'analista carica quattro CSV e seleziona il risultato. La vista mostra genealogia osservata, risultati e deviazioni pertinenti, lacune note e il percorso verso ciascun lotto. L'analista può esportare il fascicolo e risalire alle fonti. Il risultato OOS è uno stato fornito dal LIMS. La qualificazione del prodotto, la determinazione della causa e l'approvazione delle azioni restano responsabilità del team qualità.
 
-La v0.3 aggiunge una vista web locale per le indagini su importazioni SQLite. Il terminale resta disponibile per importare i CSV e per eseguire le indagini. I profili di importazione e il confronto con un'indagine manuale sono passi successivi dell'MVP.
+La v0.3 aggiunge una vista web locale per le indagini su importazioni SQLite. Il terminale resta disponibile per importare i CSV e per eseguire le indagini. La v0.4 aggiunge profili JSON per rinominare colonne e riconciliare codici lotto, con anteprima da terminale. Il confronto con un'indagine manuale resta un passo successivo dell'MVP.
 
 ## Architettura
 

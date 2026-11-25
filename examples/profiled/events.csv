@@ -1,0 +1,4 @@
+deviation_number,affected_lot,summary
+DEV-001,Q-001,Valore oltre il limite superiore della specifica simulata
+DEV-002,Q-011,Esportazione della fase di confezionamento incompleta
+DEV-099,Q-099,Verifica di un lotto indipendente
