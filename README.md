@@ -60,6 +60,10 @@ python3 -m unittest discover -s tests -v
 
 I test verificano l'equivalenza dei fascicoli, la deduplicazione, lo storico, il rollback su errore e il flusso di selezione e download della pagina locale. Il progetto è destinato alla sperimentazione con dati sintetici.
 
+## Benchmark e prova guidata
+
+Esegui `python3 benchmark.py` per misurare importazione, generazione HTML e picco di RAM con dati sintetici. Il [protocollo di validazione](docs/validazione.md) include le misure di riferimento e cinque indagini da confrontare con la procedura manuale.
+
 ## Licenza
 
 [Apache License 2.0](LICENSE).

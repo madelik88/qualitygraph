@@ -1,0 +1,5 @@
+result_id,batch_id,analyte,value,unit,status
+QC-RAW,RAW-100,Viscosity,730,mPa·s,OOS
+QC-FILL,FG-010,Viscosity,710,mPa·s,OOS
+QC-GAP,FG-011,Viscosity,760,mPa·s,OOS
+QC-ISO,FG-099,Viscosity,700,mPa·s,OOS
