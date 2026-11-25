@@ -74,6 +74,24 @@ class WebTests(unittest.TestCase):
         self.assertIn("attachment", headers["Content-Disposition"])
         self.assertEqual(json.loads(body), investigate(EXAMPLE, "QC-017"))
 
+    def test_pagination_keeps_visible_paths_and_full_download(self):
+        query = urlencode({"snapshot": self.snapshot, "result": "QC-017"})
+        with patch("qualitygraph_web.PAGE_SIZE", 1):
+            status, _, first = self.request("/?" + query)
+            self.assertEqual(status, 200)
+            self.assertIn("Pagina 1 di 2", first)
+            self.assertIn('href="#lineage-4"', first)
+            self.assertNotIn('id="lineage-5"', first)
+
+            status, _, second = self.request("/?" + query + "&page=2")
+            self.assertEqual(status, 200)
+            self.assertIn("Pagina 2 di 2", second)
+            self.assertIn('href="#lineage-5"', second)
+            self.assertIn('id="lineage-5"', second)
+            self.assertEqual(self.request("/?" + query + "&page=3")[0], 400)
+            download = self.request("/report.json?" + query)
+            self.assertEqual(json.loads(download[2]), investigate(EXAMPLE, "QC-017"))
+
     def test_selects_saved_snapshot_and_escapes_source_values(self):
         exports = self.directory / "exports"
         shutil.copytree(EXAMPLE, exports)

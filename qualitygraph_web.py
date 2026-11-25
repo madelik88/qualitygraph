@@ -20,7 +20,10 @@ def options_html(choices, selected):
     )
 
 
-def batch_list(title, items):
+PAGE_SIZE = 50
+
+
+def batch_list(title, items, total):
     cards = []
     for item in items:
         batch = item["batch"]
@@ -40,13 +43,14 @@ def batch_list(title, items):
               <ol class="steps">{"".join(steps)}</ol>
             </details>
         """)
-    content = "".join(cards) or '<p class="muted">Nessun lotto collegato nelle fonti.</p>'
-    return f'<section class="panel"><h3>{title} <span class="count">{len(items)}</span></h3>{content}</section>'
+    empty = "Nessun lotto in questa pagina." if total else "Nessun lotto collegato nelle fonti."
+    content = "".join(cards) or f'<p class="muted">{empty}</p>'
+    return f'<section class="panel"><h3>{title} <span class="count">{total}</span></h3>{content}</section>'
 
 
-def evidence_rows(report):
+def evidence_rows(items):
     records = {}
-    for item in report["upstream"] + report["downstream"]:
+    for item in items:
         for edge in item["path"]:
             records[edge["source"]["record"]] = edge
 
@@ -63,25 +67,54 @@ def evidence_rows(report):
     return "".join(rows)
 
 
-def report_html(report, snapshot):
+def pagination_html(query, page, page_count):
+    if page_count == 1:
+        return ""
+
+    def link(target, label):
+        url = escape(f"/?{query}&page={target}") + "#paths"
+        return f'<a class="button secondary" href="{url}">{label}</a>'
+
+    previous = link(page - 1, "Precedente") if page > 1 else ""
+    following = link(page + 1, "Successiva") if page < page_count else ""
+    return (
+        '<nav id="paths" class="pagination" aria-label="Pagine dell’indagine">'
+        f'{previous}<span>Pagina {page} di {page_count}</span>{following}</nav>'
+    )
+
+
+def report_html(report, snapshot, page=1):
     trigger = report["trigger"]
     batch = report["batch"]
     query = urlencode({"snapshot": snapshot, "result": trigger["result_id"]})
     download = escape("/report.json?" + query)
+    upstream = report["upstream"]
+    downstream = report["downstream"]
+    coverage = report["coverage_warnings"]
+    largest = max(map(len, (upstream, downstream, coverage)))
+    page_count = max(1, (largest + PAGE_SIZE - 1) // PAGE_SIZE)
+    if page < 1 or page > page_count:
+        raise ValueError("Pagina dell’indagine fuori intervallo.")
+    start = (page - 1) * PAGE_SIZE
+    end = start + PAGE_SIZE
+    visible_upstream = upstream[start:end]
+    visible_downstream = downstream[start:end]
     warnings = []
-    for row in report["coverage_warnings"]:
+    for row in coverage[start:end]:
         note = "Lacuna dichiarata" if row["coverage"] == "known_gap" else "Copertura sconosciuta"
         warnings.append(
             f'<li><strong>{escape(row["batch_id"])}</strong> · {note} '
             f'<span>(batches.csv · record {row["source"]["record"]})</span></li>'
         )
     alert = ""
-    if warnings:
+    if coverage:
+        warning_content = "<ul>" + "".join(warnings) + "</ul>" if warnings else "<p>Nessuna segnalazione in questa pagina.</p>"
         alert = (
             '<section class="warning" aria-labelledby="coverage"><h3 id="coverage">'
-            'Copertura delle fonti</h3><ul>' + "".join(warnings) + "</ul></section>"
+            f'Copertura delle fonti <span class="count">{len(coverage)}</span></h3>'
+            f"{warning_content}</section>"
         )
-    rows = evidence_rows(report)
+    rows = evidence_rows(visible_upstream + visible_downstream)
     evidence = ""
     if rows:
         evidence = f"""
@@ -108,9 +141,10 @@ def report_html(report, snapshot):
             <small>results.csv · record {trigger["source"]["record"]}</small>
           </section>
           {alert}
+          {pagination_html(query, page, page_count)}
           <div class="paths">
-            {batch_list("A monte", report["upstream"])}
-            {batch_list("A valle", report["downstream"])}
+            {batch_list("A monte", visible_upstream, len(upstream))}
+            {batch_list("A valle", visible_downstream, len(downstream))}
           </div>
           {evidence}
           <p class="muted note">I percorsi rappresentano la genealogia osservata.
@@ -119,7 +153,7 @@ def report_html(report, snapshot):
     """
 
 
-def render_page(snapshots=(), snapshot="", results=(), selected="", report=None, error=""):
+def render_page(snapshots=(), snapshot="", results=(), selected="", report=None, error="", page=1):
     snapshot_options = options_html(
         ((fingerprint, f"Importazione {number} · {fingerprint[:10]}")
          for number, fingerprint in snapshots),
@@ -160,7 +194,7 @@ def render_page(snapshots=(), snapshot="", results=(), selected="", report=None,
             </section>
         """
         if report is not None:
-            content += report_html(report, snapshot)
+            content += report_html(report, snapshot, page)
     return f"""<!DOCTYPE html>
 <html lang="it">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -239,7 +273,12 @@ class BrowserHandler(BaseHTTPRequestHandler):
             self.send_content(200, body, "application/json", download=True)
             return
         results = [row for row in tables["results.csv"] if row["status"] == "OOS"]
-        self.send_content(200, render_page(snapshots, snapshot, results, selected, report), "text/html")
+        try:
+            page = int(params.get("page", ["1"])[0])
+        except ValueError:
+            raise ValueError("Numero di pagina non valido.") from None
+        html = render_page(snapshots, snapshot, results, selected, report, page=page)
+        self.send_content(200, html, "text/html")
 
 
 class QualityGraphServer(ThreadingHTTPServer):

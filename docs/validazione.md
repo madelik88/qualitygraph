@@ -1,4 +1,4 @@
-# Validazione della v0.5
+# Validazione per la v1.0
 
 ## Benchmark ripetibile
 
@@ -13,12 +13,22 @@ Ogni comando genera 10.000 lotti e 100.000 relazioni in una directory temporanea
 
 ### Misure su macOS arm64, Python 3.14.3
 
-| Grafo | Importazione | Mediana pagina lato server | Picco RSS tra le fasi | HTML |
+| Grafo | Importazione | Mediana pagina lato server | Picco RSS tra le fasi | HTML prima pagina |
 | --- | ---: | ---: | ---: | ---: |
-| Ramificato | 0,275 s | 0,270 s | 269,7 MB | 17,6 MB |
-| Profondo | 0,280 s | 0,279 s | 280,2 MB | 18,9 MB |
+| Ramificato | 0,267 s | 0,177 s | 127,3 MB | 45,0 kB |
+| Profondo | 0,276 s | 0,181 s | 127,5 MB | 144,9 kB |
 
-Tre campioni per topologia, MB decimali. Entrambe le prove sono sotto i traguardi lato server di 2 s e 1 GB. L'HTML contiene tutti i percorsi e le rispettive evidenze. Per misurare l'esperienza utente, cronometrare dal clic su **Apri indagine** fino alla disponibilità dei controlli nel browser, distinguendo la prima apertura dalle successive.
+Tre campioni per topologia, kB e MB decimali. Nella v0.5 l'HTML completo era di 17,6–18,9 MB. La pagina ora mostra fino a 50 percorsi per direzione per pagina e conserva il download JSON completo. Le misure lato server soddisfano i traguardi di 2 s e 1 GB.
+
+### Misura nel browser
+
+Avvia il benchmark su una porta separata da quella della demo.
+
+```bash
+python3 benchmark.py --serve
+```
+
+Apri l'indirizzo stampato sul Mac. Nello strumento di sviluppo del browser, usa la scheda Rete e ricarica la pagina tre volte. Registra per ciascun caricamento il tempo fino all'evento `load`, con cache disabilitata, e verifica che sia possibile espandere il primo percorso. Calcola la mediana delle tre misure. Ripeti con `python3 benchmark.py --topology deep --serve`, dopo aver chiuso la prima prova con **Ctrl+C**. Obiettivo: mediana inferiore a 2 s per entrambe le topologie. Il comando usa una copia temporanea separata dal database della demo.
 
 ## Confronto con la procedura manuale
 
@@ -58,3 +68,7 @@ Apri la chiave solo al termine della prova. Confronta la mediana del tempo sui c
 I test automatici confrontano tutti e cinque i casi con questa chiave. I tempi manuali richiedono una prova con partecipanti.
 
 </details>
+
+## Stato del rilascio
+
+La versione candidata include importazione CSV con profili, snapshot SQLite, indagini locali con paginazione e download JSON completo. Tutti i cinque casi sono stati ricostruiti dai CSV e verificati con i test. Restano da misurare il caricamento effettivo nel browser e il tempo del confronto con partecipanti. La versione stabile va pubblicata dopo il completamento di queste due prove.

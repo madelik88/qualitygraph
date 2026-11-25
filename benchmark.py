@@ -12,10 +12,11 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 from time import perf_counter
+from urllib.parse import urlencode
 
 from qualitygraph import build_report, index_snapshot, load_csv
 from qualitygraph_store import list_snapshots, load_snapshot, save_snapshot
-from qualitygraph_web import render_page
+from qualitygraph_web import QualityGraphServer, render_page
 
 
 def write_csv(directory, name, headers, rows):
@@ -120,6 +121,7 @@ def main():
     parser.add_argument("--relations", type=int, default=100_000)
     parser.add_argument("--topology", choices=["wide", "deep"], default="wide")
     parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--serve", action="store_true", help="Open a local browser benchmark on port 8766")
     parser.add_argument("--worker", choices=["import", "page"], help=argparse.SUPPRESS)
     parser.add_argument("directory", nargs="?", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -134,8 +136,18 @@ def main():
         try:
             generate(directory, args.batches, args.relations, args.topology)
             imported = worker("import", directory)
+            if args.serve:
+                database = directory / "benchmark.db"
+                snapshot = list_snapshots(database)[0][1]
+                query = urlencode({"snapshot": snapshot, "result": "QC-BENCH"})
+                with QualityGraphServer(database, 8766) as server:
+                    print(f"QualityGraph: http://127.0.0.1:8766/?{query}", flush=True)
+                    try:
+                        server.serve_forever()
+                    except KeyboardInterrupt:
+                        return
             samples = [worker("page", directory) for _ in range(args.runs)]
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             parser.error(str(error))
         except subprocess.CalledProcessError as error:
             parser.exit(2, error.stderr)
