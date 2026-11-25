@@ -30,9 +30,9 @@ python3 benchmark.py --serve
 
 Apri l'indirizzo stampato sul Mac. Nello strumento di sviluppo del browser, usa la scheda Rete e ricarica la pagina tre volte. Registra per ciascun caricamento il tempo fino all'evento `load`, con cache disabilitata, e verifica che sia possibile espandere il primo percorso. Calcola la mediana delle tre misure. Ripeti con `python3 benchmark.py --topology deep --serve`, dopo aver chiuso la prima prova con **Ctrl+C**. Obiettivo: mediana inferiore a 2 s per entrambe le topologie. Il comando usa una copia temporanea separata dal database della demo.
 
-### Riscontro nel browser sul grafo ramificato
+### Riscontro nel browser
 
-Tre ricariche del caso da 10.000 lotti e 100.000 relazioni hanno richiesto 302, 248 e 255 ms (mediana 255 ms), dal comando di ricarica al completamento del caricamento e alla verifica del titolo visibile. Sono tempi misurati dall'automazione del browser, comprensivi del suo overhead. Il passaggio a pagina 2 di 200 è stato verificato. Il caso profondo resta da misurare nel browser.
+Tre ricariche del caso da 10.000 lotti e 100.000 relazioni hanno richiesto 302, 248 e 255 ms (mediana 255 ms), dal comando di ricarica al completamento del caricamento e alla verifica del titolo visibile. Sono tempi misurati dall'automazione del browser, comprensivi del suo overhead. Il passaggio a pagina 2 di 200 è stato verificato. Sul grafo profondo, con la stessa procedura, le tre ricariche hanno richiesto 336, 253 e 262 ms (mediana 262 ms). In pagina 2 è stato espanso un percorso e verificata la presenza di tutti e 100 i collegamenti alle evidenze. Entrambe le mediane sono sotto i 2 s.
 
 ## Confronto con la procedura manuale
 
@@ -75,4 +75,4 @@ I test automatici confrontano tutti e cinque i casi con questa chiave. I tempi m
 
 ## Stato del rilascio
 
-La versione candidata include importazione CSV con profili, snapshot SQLite, indagini locali con paginazione e download JSON completo. Tutti i cinque casi sono stati ricostruiti dai CSV e verificati con i test. Restano da misurare il caricamento nel browser per il grafo profondo e il tempo del confronto con partecipanti. La versione stabile va pubblicata dopo il completamento di queste due prove.
+La versione candidata include importazione CSV con profili, snapshot SQLite, indagini locali con paginazione e download JSON completo. Tutti i cinque casi sono stati ricostruiti dai CSV e verificati con i test. Il benchmark nel browser è concluso per entrambi i grafi. Resta da misurare il tempo del confronto con partecipanti prima del rilascio stabile.
